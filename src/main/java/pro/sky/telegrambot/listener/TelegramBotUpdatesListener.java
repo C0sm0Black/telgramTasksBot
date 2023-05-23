@@ -55,12 +55,12 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
             startMessage(update);
 
             /*
-            ad
+            Create new notification
              */
             createNewNotificationTaskInDataBase(update);
 
             /*
-            asd
+            Execute notification in time
              */
             executeNotificationTask();
 
@@ -95,6 +95,9 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
 
     }
 
+    /*
+    Check for pattern text
+    */
     private boolean checkForPattern(String text) {
 
         Matcher matcher = PATTERN.matcher(text);
