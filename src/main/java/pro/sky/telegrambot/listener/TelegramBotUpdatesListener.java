@@ -13,11 +13,11 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import pro.sky.telegrambot.interfaces.NotificationTaskService;
 import pro.sky.telegrambot.model.NotificationTask;
+import pro.sky.telegrambot.sheduler.NotificationScheduler;
 
 import javax.annotation.PostConstruct;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -29,9 +29,11 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     private static final Pattern PATTERN = Pattern.compile("([0-9\\.\\:\\s]{16})(\\s)([\\W+]+)");
 
     private final NotificationTaskService notificationTaskService;
+    private final NotificationScheduler notificationScheduler;
 
-    public TelegramBotUpdatesListener(NotificationTaskService notificationTaskService) {
+    public TelegramBotUpdatesListener(NotificationTaskService notificationTaskService, NotificationScheduler notificationScheduler) {
         this.notificationTaskService = notificationTaskService;
+        this.notificationScheduler = new NotificationScheduler(notificationTaskService);
     }
 
     @Autowired
@@ -138,29 +140,16 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     @Scheduled(cron = "0 0/1 * * * *")
     private void executeNotificationTask() {
 
-        if (!notificationTaskService
-                .getNotificationTaskByLocalDateTimeTask(LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES))
-                .isEmpty()) {
+        notificationScheduler.executeNotificationTask().stream()
+                .forEach(sendMessage -> {
 
-            notificationTaskService.getNotificationTaskByLocalDateTimeTask(LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES))
-                    .stream()
-                    .forEach(notificationTask -> {
+                    SendResponse response = telegramBot.execute(sendMessage);
 
-                        String answer = "Dear " + notificationTask.getUserName() + " you asked to be reminded "
-                                + notificationTask.getText();
+                    if (!response.isOk()) {
+                        logger.error("Error number: {}", response.errorCode());
+                    }
 
-                        SendMessage sendMessage;
-                        sendMessage = new SendMessage(notificationTask.getIdChat(), answer);
-
-                        SendResponse response = telegramBot.execute(sendMessage);
-
-                        if (!response.isOk()) {
-                            logger.error("Error number is: {}" + response.errorCode());
-                        }
-
-                    });
-
-        }
+                });
 
     }
 
